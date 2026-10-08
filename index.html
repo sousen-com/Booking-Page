@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reserve your place</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: #fbf2e7;
+    color: #3a3a3a;
+    margin: 0;
+    padding: 24px;
+  }
+  .card { max-width: 480px; margin: 0 auto; }
+  .clinic-header { text-align: center; margin-bottom: 24px; }
+  .clinic-header .jp-name { font-size: 20px; font-weight: 700; color: #2b2b2b; margin: 0 0 4px; }
+  .clinic-header .en-name { font-size: 13px; font-weight: 600; letter-spacing: 2px; color: #d9822c; margin: 0; }
+  .panel {
+    background: #ffffff; border: 1px solid #f0dcc2; border-radius: 18px;
+    padding: 24px 22px; box-shadow: 0 2px 10px rgba(180,130,60,0.06);
+  }
+  h1 { font-size: 19px; margin: 0 0 6px; color: #2b2b2b; }
+  .subtitle { font-size: 13px; color: #8a7a68; margin: 0 0 20px; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+  .field { margin-bottom: 12px; }
+  label { display: block; font-size: 13px; color: #6b5d4f; margin-bottom: 4px; }
+  input, select, textarea {
+    width: 100%; padding: 10px 12px; font-size: 14px; border: 1px solid #eadcc9;
+    border-radius: 10px; font-family: inherit; background: #fffdfa;
+  }
+  input:focus, select:focus, textarea:focus { outline: none; border-color: #d9822c; }
+  ::placeholder { color: #c2b8ab; }
+  button {
+    width: 100%; padding: 13px; font-size: 15px; font-weight: 600; background: #d9822c;
+    color: #fff; border: none; border-radius: 10px; cursor: pointer; margin-top: 4px;
+  }
+  button:disabled { background: #e3c39a; cursor: not-allowed; }
+  .btn-secondary { background: #fff; color: #d9822c; border: 1px solid #d9822c; }
+  .type-btn { text-align: left; margin-bottom: 12px; padding: 16px; line-height: 1.5; }
+  .type-btn small { display: block; font-size: 12px; font-weight: 400; color: rgba(255,255,255,0.9); margin-top: 4px; }
+  .btn-secondary.type-btn small { color: #b08a5a; }
+  .note { font-size: 12px; color: #9a8c7c; margin-top: 10px; }
+  .success { display: none; text-align: center; padding: 40px 0; }
+  .success h2 { font-size: 18px; margin-bottom: 8px; color: #2b2b2b; }
+  .error { display: none; color: #b00020; font-size: 13px; margin-top: 10px; }
+  .hours-table {
+    width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 16px;
+    background: #fffaf3; border-radius: 10px; overflow: hidden;
+  }
+  .hours-table td { padding: 8px 10px; color: #4a3f34; border-bottom: 1px solid #f0e3d0; }
+  .hours-table tr:last-child td { border-bottom: none; }
+  .info-box {
+    background: #fff6ec; border: 1px solid #f0dcc2; border-radius: 10px;
+    padding: 12px 14px; font-size: 13px; color: #8a5a1f; line-height: 1.6; margin: 0 0 16px;
+  }
+  .back-link {
+    display: inline-block; margin-top: 14px; font-size: 13px; color: #8a7a68;
+    background: none; border: none; width: auto; padding: 0; cursor: pointer; text-decoration: underline;
+  }
+</style>
+</head>
+<body>
+
+<div class="card">
+  <div class="clinic-header">
+    <p class="jp-name">あわ整形外科クリニック</p>
+    <p class="en-name">AWA ORTHOPEDICS CLINIC</p>
+  </div>
+
+  <!-- 読み込み中 -->
+  <div id="loading-view" class="panel">
+    <h1>Loading...</h1>
+    <p class="subtitle">Please wait a moment.</p>
+  </div>
+
+  <!-- 予約タイプ選択 -->
+  <div id="type-view" class="panel" style="display:none;">
+    <h1>Make a reservation</h1>
+    <p class="subtitle">Please choose when you would like to visit.</p>
+    <button type="button" class="type-btn" id="type-today-btn">
+      Reserve for today <span id="today-date-label"></span>
+      <small>Choose a morning or afternoon session available today.</small>
+    </button>
+    <button type="button" class="type-btn btn-secondary" id="type-future-btn">
+      Reserve for another day
+      <small>Choose a date within the next week.</small>
+    </button>
+  </div>
+
+  <!-- 受付不可(今日が休診/時間外) -->
+  <div id="closed-view" class="panel" style="display:none;">
+    <h1>No sessions available today</h1>
+    <p class="subtitle" id="closed-today-reason">There are no more reservation slots available for today. You can reserve for another day instead.</p>
+    <table class="hours-table">
+      <tr><td>Mon, Tue, Wed, Fri</td><td style="text-align:right;">9:00–12:00 &amp; 15:30–18:30</td></tr>
+      <tr><td>Thursday</td><td style="text-align:right;">9:00–12:00 only</td></tr>
+      <tr><td>Saturday (odd weeks)</td><td style="text-align:right;">9:00–13:00 only</td></tr>
+      <tr><td>Closed</td><td style="text-align:right;">Sat (even weeks), Sun, holidays</td></tr>
+    </table>
+    <button type="button" class="btn-secondary" id="closed-to-future-btn">Reserve for another day</button>
+    <button type="button" class="back-link" onclick="showType()">Back</button>
+  </div>
+
+  <!-- 日付・時間帯の選択(今日/明日以降 共通) -->
+  <div id="select-view" class="panel" style="display:none;">
+    <h1 id="select-title">Choose date and time</h1>
+    <p class="info-box">Please choose a morning or afternoon session. Please arrive and check in during the session you selected. If you do not visit during that session, your reservation will be cancelled.</p>
+    <div class="field">
+      <label for="sel-date">Preferred date</label>
+      <select id="sel-date"></select>
+    </div>
+    <div class="field">
+      <label for="sel-slot">Preferred time</label>
+      <select id="sel-slot"></select>
+    </div>
+    <button type="button" id="select-next-btn">Continue</button>
+    <button type="button" class="back-link" onclick="showType()">Back</button>
+  </div>
+
+  <!-- 患者情報入力 -->
+  <div id="form-view" class="panel" style="display:none;">
+    <h1>Your details</h1>
+    <p class="subtitle" id="form-summary"></p>
+    <form id="booking-form">
+      <div class="row">
+        <div class="field">
+          <label for="name">Full name</label>
+          <input type="text" id="name" placeholder="Jane Smith" required>
+        </div>
+        <div class="field">
+          <label for="phone">Phone number</label>
+          <input type="tel" id="phone" placeholder="+81 90-1234-5678" required>
+        </div>
+      </div>
+      <div class="field">
+        <label for="email">Email address</label>
+        <input type="email" id="email" placeholder="jane@example.com" required>
+      </div>
+      <div class="field">
+        <label for="visitType">Visit type</label>
+        <select id="visitType">
+          <option>First visit</option>
+          <option>Returning patient</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="symptomDate">When did your symptoms start?</label>
+        <input type="date" id="symptomDate">
+      </div>
+      <div class="field">
+        <label for="symptomDetail">Please describe your symptoms</label>
+        <textarea id="symptomDetail" rows="3" placeholder="e.g. I fell yesterday and hit my right knee" required></textarea>
+      </div>
+      <button type="submit" id="submit-btn">Submit reservation</button>
+      <p class="error" id="error-msg">Something went wrong. Please try again.</p>
+      <p class="note">This is a request, not a confirmed appointment time. Please check your email for confirmation.</p>
+    </form>
+    <button type="button" class="back-link" onclick="showType()">Back to start</button>
+  </div>
+
+  <!-- 完了 -->
+  <div class="success panel" id="success-view">
+    <h2>Your reservation has been received</h2>
+    <p class="subtitle" id="success-msg"></p>
+  </div>
+</div>
+
+<script>
+  const GAS_URL = "https://script.google.com/macros/s/AKfycbyxHupdu_THRk6Xsp-uK_cQGqNg8niZlo3vZuvjDDt-bd89kOkZbFtOs6FeyVTiegwXNw/exec";
+  // code.gs 側の FORM_TOKEN と必ず同じ値にすること
+  const FORM_TOKEN = "awa-form-9x7k2m";
+
+  let reservationType = null; // "today" または "future"
+
+  const form = document.getElementById("booking-form");
+  const submitBtn = document.getElementById("submit-btn");
+  const errorMsg = document.getElementById("error-msg");
+
+  function hideAll() {
+    ["loading-view","type-view","closed-view","select-view","form-view","success-view"]
+      .forEach(function(id){ document.getElementById(id).style.display = "none"; });
+  }
+  function showType() {
+    hideAll();
+    reservationType = null;
+    document.getElementById("type-view").style.display = "block";
+  }
+
+  // 起動: タイプ選択を表示し、今日の状況(日付・受付可否)を取得
+  hideAll();
+  document.getElementById("type-view").style.display = "block";
+
+  window._todayStatus = null;
+  fetch(GAS_URL + "?check=today")
+    .then(function (res) { return res.json(); })
+    .then(function (st) {
+      window._todayStatus = st;
+      if (st && st.dateLabel) {
+        document.getElementById("today-date-label").textContent = "(" + st.dateLabel + ")";
+      }
+    })
+    .catch(function () {});
+
+  document.getElementById("type-today-btn").addEventListener("click", function () {
+    reservationType = "today";
+    loadDates("today", "Reserve for today");
+  });
+  document.getElementById("type-future-btn").addEventListener("click", function () {
+    reservationType = "future";
+    loadDates("future", "Reserve for another day");
+  });
+  document.getElementById("closed-to-future-btn").addEventListener("click", function () {
+    reservationType = "future";
+    loadDates("future", "Reserve for another day");
+  });
+
+  function loadDates(scope, title) {
+    hideAll();
+    document.getElementById("select-view").style.display = "block";
+    document.getElementById("select-title").textContent = title;
+    const dateSel = document.getElementById("sel-date");
+    dateSel.innerHTML = '<option>Loading...</option>';
+    fetch(GAS_URL + "?check=dates&scope=" + scope)
+      .then(function (res) { return res.json(); })
+      .then(function (dates) {
+        window._dates = dates;
+        // 今日を選んで空(=今日はもう受付不可)の場合は、受付不可画面へ
+        if (scope === "today" && (!dates || dates.length === 0)) {
+          hideAll();
+          document.getElementById("closed-view").style.display = "block";
+          return;
+        }
+        dateSel.innerHTML = "";
+        if (!dates || dates.length === 0) {
+          dateSel.innerHTML = '<option value="">No available dates</option>';
+          return;
+        }
+        dates.forEach(function (d, idx) {
+          const opt = document.createElement("option");
+          opt.value = idx;
+          opt.textContent = d.label;
+          dateSel.appendChild(opt);
+        });
+        updateSlots();
+      })
+      .catch(function () {
+        dateSel.innerHTML = '<option value="">Could not load dates</option>';
+      });
+  }
+
+  document.getElementById("sel-date").addEventListener("change", updateSlots);
+  function updateSlots() {
+    const dates = window._dates || [];
+    const idx = document.getElementById("sel-date").value;
+    const slotSel = document.getElementById("sel-slot");
+    slotSel.innerHTML = "";
+    if (dates[idx]) {
+      dates[idx].slots.forEach(function (s) {
+        const opt = document.createElement("option");
+        opt.value = s; opt.textContent = s;
+        slotSel.appendChild(opt);
+      });
+    }
+  }
+
+  document.getElementById("select-next-btn").addEventListener("click", function () {
+    const dates = window._dates || [];
+    const idx = document.getElementById("sel-date").value;
+    const slot = document.getElementById("sel-slot").value;
+    if (!dates[idx] || !slot) return;
+    window._selDate = dates[idx].date;
+    window._selLabel = dates[idx].label;
+    window._selSlot = slot;
+    hideAll();
+    document.getElementById("form-summary").textContent = "Reservation for " + dates[idx].label + ", " + slot;
+    document.getElementById("form-view").style.display = "block";
+  });
+
+  form.addEventListener("submit", function (e) {
+    e.preventDefault();
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Sending...";
+    errorMsg.style.display = "none";
+
+    const payload = {
+      token: FORM_TOKEN,
+      reservationType: reservationType,
+      preferredDate: window._selDate || "",
+      preferredSlot: window._selSlot || "",
+      name: document.getElementById("name").value,
+      phone: document.getElementById("phone").value,
+      email: document.getElementById("email").value,
+      visitType: document.getElementById("visitType").value,
+      arrival: "",
+      symptomDate: document.getElementById("symptomDate").value,
+      symptomDetail: document.getElementById("symptomDetail").value,
+    };
+
+    fetch(GAS_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify(payload),
+    })
+      .then(function (res) {
+        if (!res.ok) throw new Error("Network error");
+        return res.json();
+      })
+      .then(function (result) {
+        if (result && result.result === "success") {
+          hideAll();
+          document.getElementById("success-msg").textContent =
+            "Thank you. A confirmation email has been sent to you. Please visit the clinic during the session you selected (" +
+            (window._selLabel || "") + ", " + (window._selSlot || "") + ") and check in at the front desk.";
+          document.getElementById("success-view").style.display = "block";
+        } else {
+          throw new Error((result && result.message) || "Unknown error");
+        }
+      })
+      .catch(function () {
+        submitBtn.disabled = false;
+        submitBtn.textContent = "Submit reservation";
+        errorMsg.style.display = "block";
+      });
+  });
+</script>
+
+</body>
+</html>
